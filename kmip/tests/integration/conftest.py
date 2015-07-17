@@ -17,6 +17,8 @@ import pytest
 
 from kmip.services.kmip_client import KMIPProxy
 
+from kmip.pie.client import KmipClient
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -31,6 +33,20 @@ def client(request):
     config = request.config.getoption("--config")
 
     client = KMIPProxy(config=config)
+    client.open()
+
+    def finalize():
+        client.close()
+
+    request.addfinalizer(finalize)
+    request.cls.client = client
+
+
+@pytest.fixture(scope="class")
+def simple(request):
+    config = request.config.getoption("--config")
+
+    client = KmipClient(config=config)
     client.open()
 
     def finalize():
