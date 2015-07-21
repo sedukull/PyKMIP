@@ -13,16 +13,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from testtools import TestCase
+import binascii
+import testtools
 
 from kmip.core.enums import CryptographicAlgorithm
 from kmip.core.enums import CryptographicUsageMask
+from kmip.core.enums import KeyFormatType
 from kmip.core.enums import ObjectType
 
 from kmip.pie.objects import PublicKey
 
 
-class TestPublicKey(TestCase):
+class TestPublicKey(testtools.TestCase):
     """
     Test suite for PublicKey.
     """
@@ -69,12 +71,14 @@ class TestPublicKey(TestCase):
         """
         Test that a PublicKey object can be instantiated.
         """
-        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                        KeyFormatType.X_509)
 
         self.assertEqual(key.cryptographic_algorithm,
                          CryptographicAlgorithm.RSA)
         self.assertEqual(key.cryptographic_length, 1024)
         self.assertEqual(key.value, self.bytes_1024)
+        self.assertEqual(key.key_format_type, KeyFormatType.X_509)
         self.assertEqual(key.cryptographic_usage_masks, list())
         self.assertEqual(key.names, ['Public Key'])
 
@@ -86,6 +90,7 @@ class TestPublicKey(TestCase):
             CryptographicAlgorithm.RSA,
             1024,
             self.bytes_1024,
+            KeyFormatType.X_509,
             masks=[CryptographicUsageMask.ENCRYPT,
                    CryptographicUsageMask.DECRYPT],
             name='Test Public Key')
@@ -94,6 +99,7 @@ class TestPublicKey(TestCase):
                          CryptographicAlgorithm.RSA)
         self.assertEqual(key.cryptographic_length, 1024)
         self.assertEqual(key.value, self.bytes_1024)
+        self.assertEqual(key.key_format_type, KeyFormatType.X_509)
         self.assertEqual(key.cryptographic_usage_masks,
                          [CryptographicUsageMask.ENCRYPT,
                           CryptographicUsageMask.DECRYPT])
@@ -104,7 +110,8 @@ class TestPublicKey(TestCase):
         Test that the object type can be retrieved from the PublicKey.
         """
         expected = ObjectType.PUBLIC_KEY
-        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                        KeyFormatType.X_509)
         observed = key.object_type
         self.assertEqual(expected, observed)
 
@@ -113,7 +120,7 @@ class TestPublicKey(TestCase):
         Test that a TypeError is raised when an invalid algorithm value is
         used to construct a PublicKey.
         """
-        args = ('invalid', 1024, self.bytes_1024)
+        args = ('invalid', 1024, self.bytes_1024, KeyFormatType.X_509)
         self.assertRaises(TypeError, PublicKey, *args)
 
     def test_validate_on_invalid_length(self):
@@ -121,7 +128,8 @@ class TestPublicKey(TestCase):
         Test that a TypeError is raised when an invalid length value is used
         to construct a PublicKey.
         """
-        args = (CryptographicAlgorithm.RSA, 'invalid', self.bytes_1024)
+        args = (CryptographicAlgorithm.RSA, 'invalid', self.bytes_1024,
+                KeyFormatType.X_509)
         self.assertRaises(TypeError, PublicKey, *args)
 
     def test_validate_on_invalid_value(self):
@@ -129,7 +137,15 @@ class TestPublicKey(TestCase):
         Test that a TypeError is raised when an invalid value is used to
         construct a PublicKey.
         """
-        args = (CryptographicAlgorithm.RSA, 1024, 0)
+        args = (CryptographicAlgorithm.RSA, 1024, 0, KeyFormatType.X_509)
+        self.assertRaises(TypeError, PublicKey, *args)
+
+    def test_validate_on_invalid_format_type(self):
+        """
+        Test that a TypeError is raised when an invalid format type is used to
+        construct a PublicKey.
+        """
+        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024, 'invalid')
         self.assertRaises(TypeError, PublicKey, *args)
 
     def test_validate_on_invalid_masks(self):
@@ -137,7 +153,8 @@ class TestPublicKey(TestCase):
         Test that a TypeError is raised when an invalid masks value is used to
         construct a PublicKey.
         """
-        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                KeyFormatType.X_509)
         kwargs = {'masks': 'invalid'}
         self.assertRaises(TypeError, PublicKey, *args, **kwargs)
 
@@ -146,7 +163,8 @@ class TestPublicKey(TestCase):
         Test that a TypeError is raised when an invalid mask value is used to
         construct a PublicKey.
         """
-        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                KeyFormatType.X_509)
         kwargs = {'masks': ['invalid']}
         self.assertRaises(TypeError, PublicKey, *args, **kwargs)
 
@@ -155,7 +173,8 @@ class TestPublicKey(TestCase):
         Test that a TypeError is raised when an invalid name value is used to
         construct a PublicKey.
         """
-        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        args = (CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                KeyFormatType.X_509)
         kwargs = {'name': 0}
         self.assertRaises(TypeError, PublicKey, *args, **kwargs)
 
@@ -163,9 +182,11 @@ class TestPublicKey(TestCase):
         """
         Test that repr can be applied to a PublicKey.
         """
-        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
-        args = "algorithm={0}, length={1}, value={2}".format(
-            CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                        KeyFormatType.X_509)
+        args = "algorithm={0}, length={1}, value={2}, format_type={3}".format(
+            CryptographicAlgorithm.RSA, 1024,
+            binascii.hexlify(self.bytes_1024), KeyFormatType.X_509)
         expected = "PublicKey({0})".format(args)
         observed = repr(key)
         self.assertEqual(expected, observed)
@@ -174,8 +195,9 @@ class TestPublicKey(TestCase):
         """
         Test that str can be applied to a PublicKey.
         """
-        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
-        expected = str(self.bytes_1024)
+        key = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                        KeyFormatType.X_509)
+        expected = str(binascii.hexlify(self.bytes_1024))
         observed = str(key)
         self.assertEqual(expected, observed)
 
@@ -184,8 +206,10 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns True when comparing two
         PublicKey objects with the same data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
-        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
+        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
         self.assertTrue(a == b)
         self.assertTrue(b == a)
 
@@ -194,8 +218,10 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns False when comparing two
         PublicKey objects with different data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
-        b = PublicKey(CryptographicAlgorithm.AES, 1024, self.bytes_1024)
+        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
+        b = PublicKey(CryptographicAlgorithm.AES, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
         self.assertFalse(a == b)
         self.assertFalse(b == a)
 
@@ -204,8 +230,10 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns False when comparing two
         PublicKey objects with different data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
-        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_1024)
+        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
+        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_1024,
+                      KeyFormatType.X_509)
         self.assertFalse(a == b)
         self.assertFalse(b == a)
 
@@ -214,8 +242,22 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns False when comparing two
         PublicKey objects with different data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
-        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_2048)
+        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
+        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_2048,
+                      KeyFormatType.X_509)
+        self.assertFalse(a == b)
+        self.assertFalse(b == a)
+
+    def test_equal_on_not_equal_format_type(self):
+        """
+        Test that the equality operator returns False when comparing two
+        PublicKey objects with different data.
+        """
+        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
+        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.PKCS_1)
         self.assertFalse(a == b)
         self.assertFalse(b == a)
 
@@ -224,7 +266,8 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns False when comparing a
         PublicKey object to a non-PublicKey object.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        a = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.X_509)
         b = "invalid"
         self.assertFalse(a == b)
         self.assertFalse(b == a)
@@ -234,8 +277,10 @@ class TestPublicKey(TestCase):
         Test that the inequality operator returns False when comparing
         two PublicKey objects with the same internal data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048)
-        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048)
+        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
+        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
         self.assertFalse(a != b)
         self.assertFalse(b != a)
 
@@ -244,8 +289,10 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns True when comparing two
         PublicKey objects with different data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048)
-        b = PublicKey(CryptographicAlgorithm.AES, 2048, self.bytes_2048)
+        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
+        b = PublicKey(CryptographicAlgorithm.AES, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
         self.assertTrue(a != b)
         self.assertTrue(b != a)
 
@@ -254,8 +301,10 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns True when comparing two
         PublicKey objects with different data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048)
-        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024)
+        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
+        b = PublicKey(CryptographicAlgorithm.RSA, 1024, self.bytes_1024,
+                      KeyFormatType.PKCS_1)
         self.assertTrue(a != b)
         self.assertTrue(b != a)
 
@@ -264,8 +313,22 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns True when comparing two
         PublicKey objects with different data.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048)
-        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_1024)
+        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
+        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_1024,
+                      KeyFormatType.PKCS_1)
+        self.assertTrue(a != b)
+        self.assertTrue(b != a)
+
+    def test_not_equal_on_not_equal_format_type(self):
+        """
+        Test that the equality operator returns True when comparing two
+        PublicKey objects with different data.
+        """
+        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
+        b = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.X_509)
         self.assertTrue(a != b)
         self.assertTrue(b != a)
 
@@ -274,7 +337,8 @@ class TestPublicKey(TestCase):
         Test that the equality operator returns True when comparing a
         PublicKey object to a non-PublicKey object.
         """
-        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048)
+        a = PublicKey(CryptographicAlgorithm.RSA, 2048, self.bytes_2048,
+                      KeyFormatType.PKCS_1)
         b = "invalid"
         self.assertTrue(a != b)
         self.assertTrue(b != a)
